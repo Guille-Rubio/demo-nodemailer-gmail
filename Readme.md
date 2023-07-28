@@ -4,53 +4,131 @@
 npm init -y
 touch index.js .env .gitignore
 npm i express nodemailer
-mkdir controllers utils
+mkdir utils
 touch utils/nodemailer.js
 ```
-add [rules](https://github.com/github/gitignore/blob/main/Node.gitignore) to gitignore 
+Add [rules](https://github.com/github/gitignore/blob/main/Node.gitignore) to gitignore 
 
-
-index.js
-```js
-
+add start script
+```json
+"scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
 
 ```
 
-Setting up the account 
 
-go to GCP console
-create new project -> demo-nodemailer-gmail
+.env
+```
+GMAIL_SENDER=
+GMAIL_CLIENT_ID=
+GMAIL_CLIENT_SECRET=
+ACCESS_TOKEN=
+REFRESH_TOKEN=
+```
 
-API & Services -> OAuth consent screen
+## Setting up Google Cloud Platform 
+
+go to [GCP console](https://console.cloud.google.com/)
+
+create new project -> `demo-nodemailer-gmail`
+
+API & Services -> OAuth consent screen<br>
 select External
 
-NB! You should not use external user type in production without going through the audit. Until the project is in "testing" mode OAuth2 refresh tokens expire in 7 days. This means that registered users need to re-login after every 7 days to keep their connections active.
+click Create
 
-Create
-
-App name
+Enter App name
 support email
 
-Add scopes, 
+### Add scopes 
 
 add `https://mail.google.com/` manually, update
 
 save and continue
 
-Add user 
+Add user (i.e. )
 
 
-Email engine credentials
-Credentiasl -> Create credentials -> OAuth Client ID
-web application
+### Create OAuth credentials
+on GCP console go to
+1. Credentials -> Create credentials -> OAuth Client ID
+
+2. select web application
+
+3. JS authorised origins -> http://127.0.0.1:5000
+
+4. Authorized redirect URIs -> https://developers.google.com/oauthplayground
+
+5. Click create
 
 
-JS authorised origins -> http://127.0.0.1:5000
+## Get Tokens
+1. go to https://developers.google.com/oauthplayground
+2. go to the gear icon on the upper right
+check `use your own OAuth credentials`
+type in your app Client ID and Client Secret, and close this menu. 
 
-Authorized redirect URIs -> https://developers.google.com/oauthplayground
+3. Look for Gmail API v1, click on the toggle and check at least the first ("https://mail.google.com")
 
-create
+4. Click `Authorize API`
 
-go to https://developers.google.com/oauthplayground
+5. Click Exchange Authorization code for tokens
 
-Add playground
+6. Save yor Refresh and Access tokens in your .env
+
+
+## Add nodemailer
+
+### Create transporter
+in utils/nodemailer.js
+```js
+"use strict";
+const nodemailer = require("nodemailer");
+
+let transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+        type: "OAuth2",
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET
+    }
+});
+
+module.exports = transporter;
+
+```
+
+### Send email
+
+use the sendMail method of the transporter to send an email specifying auth credentials.
+
+```js
+transporter.sendMail({
+        from: process.env.GMAIL_SENDER,
+        to: emailrecipient,
+        subject: "Nodemailer from gmail",
+        text: "I hope this message gets through!",
+        auth: {
+            user: process.env.GMAIL_SENDER,//gmail address
+            refreshToken: process.env.REFRESH_TOKEN,
+            accessToken: process.env.ACCESS_TOKEN,
+            expires: 1484314697598,
+        },
+    });
+
+```
+
+
+
+
+
+run your app with `npm start` and visit your endpoint. 
+
+
+
+
+Thanks to Alex: [How to send emails using NodeMailer, gmail and OAuth2](https://alexb72.medium.com/how-to-send-emails-using-a-nodemailer-gmail-and-oauth2-fe19d66451f9)
